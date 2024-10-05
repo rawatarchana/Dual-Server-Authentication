@@ -1,0 +1,23 @@
+{
+  "name": "assign-7",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "concurrently \"nodemon app.js\" \"nodemon authServer.js\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "assign-7": "file:",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "nodemon": "^3.1.7"
+  }
+}

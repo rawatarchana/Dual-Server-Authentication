@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Authentication</title>
+</head>
+
+<body>
+    <h2>JWT Authentication</h2>
+
+    <!-- Login Form -->
+    <h3>Login</h3>
+    <form id="loginForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <button type="submit">Login</button>
+    </form>
+    <!-- Posts -->
+    <h3>Your Posts</h3>
+    <button id="getPostsBtn">Get My Posts</button>
+    <div id="posts"></div>
+
+    <!-- Logout -->
+    <h3>Logout</h3>
+    <button id="logoutBtn">Logout</button>
+
+    <script>
+        const apiUrl = 'http://localhost:4000';
+        const apiUrlForPosts = 'http://localhost:3000';
+        let accessToken = null;
+        let refreshToken = null;
+
+        // Login and get tokens
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+
+            const response = await fetch(`${apiUrl}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+
+            const data = await response.json();
+            accessToken = data.accessToken; // Store the access token
+            refreshToken = data.refreshToken; // Store the refresh token
+            console.log('Login successful. Access Token:', accessToken);
+        });
+
+        // Fetch posts using the access token
+        document.getElementById('getPostsBtn').addEventListener('click', async function () {
+            await getPosts(); // Fetch posts when the button is clicked
+        });
+
+        // Fetch posts with automatic token renewal
+        async function getPosts() {
+            setInterval(async () => {
+                if (accessToken) {
+                    console.log('Access token not available. Trying to get a new one...');
+                    await requestNewAccessToken(); // Wait for new token
+                }
+            }, 5000);
+
+
+            if (accessToken) {
+                const response = await fetch(`${apiUrlForPosts}/posts`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const posts = await response.json();
+                    document.getElementById('posts').innerText = JSON.stringify(posts);
+                } else if (response.status === 403) {
+                    console.log('Access token expired, retrying...');
+                    await requestNewAccessToken();
+                    await getPosts(); // Retry after getting new token
+                } else {
+                    console.log('Failed to fetch posts:', response.status);
+                }
+            }
+        }
+
+        // Request a new access token using the refresh token
+        async function requestNewAccessToken() {
+            if (!refreshToken) {
+                document.getElementById('posts').innerText = "";
+                console.log('No refresh token available. Please log in first.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: refreshToken }) // Ensure you send the correct format
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    accessToken = data.accessToken; // Update accessToken
+                    console.log('New Access Token:', accessToken);
+                } else if (response.status === 401) {
+                    console.log('No refresh token found. Please log in again.');
+                } else if (response.status === 403) {
+                    console.log('Invalid or expired refresh token. Please log in again.');
+                    refreshToken = null; // Clear refresh token if invalid
+                } else {
+                    console.log('Failed to obtain new access token:', response.status);
+                }
+            } catch (error) {
+                console.log('Error while requesting new access token:', error);
+                refreshToken = null;
+            }
+        }
+
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async function () {
+            if (!refreshToken) {
+                console.log('No refresh token available. Please log in first.');
+                return;
+            }
+
+            // Fetch logout API
+            try {
+                const response = await fetch(`${apiUrl}/logout`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: refreshToken })
+                });
+
+                if (response.ok) {
+                    console.log('Logged out successfully');
+                    refreshToken = null;
+                    accessToken = null;
+                    document.getElementById('posts').innerText = "";
+
+                    // Optionally redirect to a login page after logout
+                    // window.location.href = '/login';
+                } else {
+                    console.error('Logout failed:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error during logout:', error);
+            }
+        });
+    </script>
+
+
+</body>
+
+</html>
